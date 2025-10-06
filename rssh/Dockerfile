@@ -6,9 +6,10 @@ RUN apt -y --no-install-recommends update && \
     apt -y --no-install-recommends upgrade && \
     apt install -y --no-install-recommends upx-ucl gcc-mingw-w64 && \
     rm -rf /var/cache/apk/* && \
-    go install mvdan.cc/garble@latest
+    GOTOOLCHAIN=auto go install mvdan.cc/garble@latest
 
 ENV PATH="${PATH}:$(go env GOPATH)/bin"
+ENV GOTOOLCHAIN=auto
 
 COPY go.mod go.sum ./
 

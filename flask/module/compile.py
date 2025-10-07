@@ -11,6 +11,7 @@ import os
 import time
 
 import re
+import shlex
 
 
 def get_compiled_clients_list():
@@ -173,17 +174,42 @@ def makeClient(key_file, rssh_ip, rssh_port, make_input_dict):
             except Exception as e:
                 current_app.logger.exception(e)
                 return {'stat': 'failed', 'result': 'Rssh Connect Error'}
-            proxy_cmd = '--proxy ' + make_input_dict['address_proxy'] + ':' + make_input_dict['port_proxy'] if make_input_dict['address_proxy'] != '' and make_input_dict['port_proxy'] != '' else ''
-            flow_cmd = '--' + make_input_dict['flow'] if make_input_dict['flow'] != '' and make_input_dict['flow'] != 'ssh' else ''
-            upx = '--upx' if make_input_dict['upx'] else ''
-            garble = '--garble' if make_input_dict['garble'] else ''
             os, arch = make_input_dict['os_arch'].split('/')
+
+            make_cmd_parts = [
+                'link',
+                '--name', make_input_dict['filename'],
+                '--goos', os
+            ]
+
             if (os == 'windows' and arch == 'dll') or (os == 'linux' and arch == 'so'):
-                make_cmd = 'link --name ' + make_input_dict['filename'] + ' --goos ' + os + ' --shared-object -s ' + \
-                           make_input_dict['address'] + ':' + make_input_dict['port'] + ' ' + upx + ' ' + garble + ' ' + proxy_cmd + ' ' + flow_cmd + ' '+ '--process'+' '+make_input_dict['process'] + ' ' + '--log-level' + ' '+ make_input_dict['log_level']
+                make_cmd_parts.append('--shared-object')
             else:
-                make_cmd = 'link --name ' + make_input_dict['filename'] + ' --goos ' + os + ' --goarch ' + arch + ' -s ' + \
-                           make_input_dict['address'] + ':' + make_input_dict['port'] + ' ' + upx + ' ' + garble + ' ' + proxy_cmd + ' ' + flow_cmd +' '+ '--process'+' '+make_input_dict['process'] + ' ' + '--log-level' + ' '+ make_input_dict['log_level']
+                make_cmd_parts.extend(['--goarch', arch])
+
+            make_cmd_parts.extend(['-s', make_input_dict['address'] + ':' + make_input_dict['port']])
+
+            if make_input_dict['upx']:
+                make_cmd_parts.append('--upx')
+
+            if make_input_dict['garble']:
+                make_cmd_parts.append('--garble')
+
+            if make_input_dict['address_proxy'] != '' and make_input_dict['port_proxy'] != '':
+                make_cmd_parts.extend([
+                    '--proxy',
+                    make_input_dict['address_proxy'] + ':' + make_input_dict['port_proxy']
+                ])
+
+            if make_input_dict['flow'] not in ['', 'ssh']:
+                make_cmd_parts.append('--' + make_input_dict['flow'])
+
+            if make_input_dict['process']:
+                make_cmd_parts.extend(['--process', make_input_dict['process']])
+
+            make_cmd_parts.extend(['--log-level', make_input_dict['log_level']])
+
+            make_cmd = ' '.join(shlex.quote(part) for part in make_cmd_parts if part)
             current_app.logger.info('Make client Cmd: ' + str(make_cmd))
             make_result = rssh_target.exec_command(make_cmd)
             if make_result['stat'] == 'success':

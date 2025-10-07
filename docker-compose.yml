@@ -61,6 +61,8 @@ services:
     ports:
       - 3232:3232
     privileged: false
+    environment:
+      - EXTERNAL_ADDRESS=${EXTERNAL_ADDRESS:-:3232}
     volumes:
       - ./volume/rssh:/data
       - ./volume/flask/authorized_keys:/data/authorized_keys
